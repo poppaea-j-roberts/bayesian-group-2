@@ -4,9 +4,6 @@ from torchdyn.core import NeuralODE
 from torchcfm.conditional_flow_matching import *
 from torchcfm.utils import *
 
-# inputs: samples from joint, samples from some prior, N(0,1), model
-# hyperparameters:
-# output: samples for each time
 
 class DataConditionalModel(torch.nn.Module):
     """ for an input model, fixes final input values to values specified in data
@@ -63,17 +60,20 @@ def fit_FMPE_model(joint_samples, noise_samples, model=None, flow_matching=None,
 
     optimizer = torch.optim.Adam(model_.parameters())
 
+    # choice of flow matching setup, specifies form of conditional flows
+    # by default uses conditional flow matching from prior to posterior
+    # beware: other flow matchers like TargetConditionalFlowMatcher only work with samples from a standard gaussian
     if flow_matching is None:
         fm = ConditionalFlowMatcher()
     else:
-        fm = flow_matching
+        fm = flow_matching()
 
     n_batches = np.ceil(N/batch_size).astype(int)
     for k in range(n_batches):
         optimizer.zero_grad()
 
         theta_0 = noise_samples[k*batch_size:min((k+1)*batch_size, N),:]
-        batch_size_k = theta_0.shape[0]
+        batch_size_k = theta_0.shape[0]  # == batch_size for all but final batch
 
         theta_1, x = joint_samples
         theta_1 = theta_1[k*batch_size:min((k+1)*batch_size, N),:]
